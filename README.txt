@@ -1,27 +1,24 @@
 ---
-- name: PlayBook
-  hosts: all
+- hosts: all
   become: true
-  gather_facts: false
+  vars:
+    doc_root: /var/www/example
   tasks:
-  
-  - name: Install required system packages
-    apt: name={{ item }} state=latest update_cache=yes
-    loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python-pip', 'virtualenv', 'python3-setuptools']
+    - name: Update apt
+      apt: update_cache=yes
 
-  - name: Add Docker GPG apt Key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
+    - name: Install Apache
+      apt: name=apache2 state=latest
 
-  - name: Add Docker Repository
-    apt_repository:
-      repo: deb https://download.docker.com/linux/ubuntu bionic stable
-      state: present
+    - name: Create custom document root
+      file: path={{ doc_root }} state=directory owner=www-data group=www-data
 
-  - name: Update apt and install docker-ce
-    apt: update_cache=yes name=docker-ce state=latest
+    - name: Set up HTML file
+      copy: src=index.html dest={{ doc_root }}/index.html owner=www-data group=www-data mode=0644
 
-  - name: Install Docker Module for Python
-    apt:
-      name: docker
+    - name: Set up Apache virtual host file
+      template: src=vhost.tpl dest=/etc/apache2/sites-available/000-default.conf
+      notify: restart apache
+  handlers:
+    - name: restart apache
+      service: name=apache2 state=restarted
